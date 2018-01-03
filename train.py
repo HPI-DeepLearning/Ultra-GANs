@@ -8,13 +8,13 @@ from config import *
 opt_dcgan = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 opt_discriminator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
   
-gen = Generator((sequence_length, size, size, input), output, kernel_depth)
+gen = Generator((sequence_length, size, size, input), output, kernel_depth, sequence_crop, size*size*output)
 gen.compile(loss='mae', optimizer=opt_discriminator)
 
 disc = Discriminator((sequence_total, size, size, input), (sequence_total, size, size, output), kernel_depth)
 disc.trainable = False
 
-combined = Combine(gen, disc, (sequence_length, size, size, input))
+combined = Combine(gen, disc, (sequence_length, size, size, input), sequence_crop, (sequence_total, size, size, output))
 loss = ['categorical_crossentropy', 'binary_crossentropy']
 loss_weights = [5, 1]
 combined.compile(loss=loss, loss_weights=loss_weights, optimizer=opt_dcgan)

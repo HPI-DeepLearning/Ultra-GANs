@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Bidirectional, Input, Concatenate, Cropping3D, Dense, Flatten, TimeDistributed, ConvLSTM2D
+from keras.layers import Bidirectional, Input, Concatenate, Cropping3D, Dense, Flatten, TimeDistributed, ConvLSTM2D, LeakyReLU
 from keras.layers.core import Dropout, Activation, Reshape
 from keras.layers.convolutional import Conv2D, MaxPooling2D, UpSampling2D, Cropping2D, SeparableConv2D
 from keras.layers.normalization import BatchNormalization
@@ -9,14 +9,14 @@ import keras.backend as K
 
 def conv_layer(layer, depth, size):
     conv = TimeDistributed(Conv2D(depth, size, padding='same'))(layer)
-    conv = Activation('tanh')(conv)
+    conv = LeakyReLU(0.2)(conv)
     return TimeDistributed(BatchNormalization())(conv)
 
 def lstm_layer(layer, depth, size):
     conv = Bidirectional(ConvLSTM2D(depth, size, padding='same', return_sequences=True), merge_mode='sum')(layer)
     return TimeDistributed(BatchNormalization())(conv)
     
-def Generator(input_shape, output, kernel_depth, kernel_size=5):
+def Generator(input_shape, output, kernel_depth, sequence_crop, pixels, kernel_size=5):
     input = Input(shape=input_shape)
     
     conv_seperable = TimeDistributed(SeparableConv2D(2 * kernel_depth, kernel_size, padding='same'))(input)
@@ -47,13 +47,13 @@ def Generator(input_shape, output, kernel_depth, kernel_size=5):
     up_conv_64 = conv_layer(up_64, 2 * kernel_depth, kernel_size)
 
     up_128 = concatenate([TimeDistributed(UpSampling2D())(up_conv_64), conv_128])
-    up_conv_128 = lstm_layer(up_128, kernel_depth, kernel_size)
+    up_conv_128 = conv_layer(up_128, kernel_depth, kernel_size)
     
     # Crop border
-    cropped = Cropping3D(cropping=(2,0,0))(up_conv_128)
+    cropped = Cropping3D(cropping=(sequence_crop, 0, 0))(up_conv_128)
     
     final = TimeDistributed(Conv2D(output, 1))(cropped)
-    final = Reshape((240*240*4, output))(final)
+    final = Reshape((pixels, output))(final)
     final = Activation('softmax')(final)
     
     model = Model(input, final, name="Generator")
@@ -88,12 +88,12 @@ def Discriminator(input_shape, generator_shape, kernel_depth, kernel_size=5):
     model = Model([real_input, generator_input], x, name="Discriminator")
     return model
   
-def Combine(gen, disc, input_shape):
+def Combine(gen, disc, input_shape, sequence_crop, new_sequence):
     input = Input(shape=input_shape)
     generated_image = gen(input)
 
-    cropped = Cropping3D(cropping=(2,0,0))(input)
-    reshaped = Reshape((4, 240, 240, 4))(generated_image)
+    cropped = Cropping3D(cropping=(sequence_crop, 0, 0))(input)
+    reshaped = Reshape(new_sequence)(generated_image)
     
     DCGAN_output = disc([cropped, reshaped])
 
