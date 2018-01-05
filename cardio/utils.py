@@ -20,7 +20,7 @@ def prepare_data(directory):
     
     return sequences
      
-def open(path):
+def open_image(path):
     image = scipy.misc.imread(path).astype(np.float)
     subimages = np.split(image / 255, input + output, axis=1)
     return [np.stack(augment(subimages[output:]), axis=-1) * 2 - 1, np.stack(subimages[:output], axis=-1)]
@@ -28,7 +28,7 @@ def open(path):
 # Load image sequences
 def load(sequence, subsequence_length):
 
-    images = [open(seq) for seq in sequence]
+    images = [open_image(seq) for seq in sequence]
     x = []
     y = []
     

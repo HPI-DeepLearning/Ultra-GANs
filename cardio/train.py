@@ -34,6 +34,8 @@ validation = prepare_data(val_dir)
 real_y = np.reshape(np.array([0, 1]), (1, 2))
 fake_y = np.reshape(np.array([1, 0]), (1, 2))
 
+log = open("train.log",'w')
+
 for e in range(epochs):
     print("Epoch {}".format(e))
     random.shuffle(sequences)
@@ -48,18 +50,20 @@ for e in range(epochs):
         for i in range(len(x)):
         
             # train disc on real
-            disc.train_on_batch([x[i], y[i]], real_y)
+            dr_loss = disc.train_on_batch([x[i], y[i]], real_y)
         
             # gen fake
             fake = gen.predict(x[i])
         
             # train disc on fake
-            disc.train_on_batch([x[i], re_shape(fake)], fake_y)
+            df_loss = disc.train_on_batch([x[i], re_shape(fake)], fake_y)
         
             # train combined    
             disc.trainable = False
-            combined.train_on_batch(x[i], [np.reshape(y[i], (1, sequence_length*size*size, output)), real_y])
+            g_loss = combined.train_on_batch(x[i], [np.reshape(y[i], (1, sequence_length*size*size, output)), real_y])
             disc.trainable = True
+            
+            log.write(str(e) + ", " + str(s) + ", " + str(dr_loss) + ", " + str(df_loss) + ", " + str(g_loss[0]) + ", " + str(g_loss[1]) + ", " + str(opt_dcgan.get_config()["lr"]) + "\n")
             
         progbar.add(1)
             
